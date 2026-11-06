@@ -308,7 +308,25 @@ public class BPlusTree {
         // Use the provided updateRoot() helper method to change
         // the tree's root if the old root splits.
 
-        return;
+        if (scanAll().hasNext()) {
+            throw new BPlusTreeException("tree should be empty");
+        }
+
+        while(data.hasNext()) {
+            Optional<Pair<DataBox, Long>> splitInfo = root.bulkLoad(data , fillFactor);
+
+            if(!splitInfo.isPresent()) {
+                return ;
+            }
+
+            DataBox splitRightKey = splitInfo.get().getFirst();
+            Long splitPageNumber = splitInfo.get().getSecond();
+
+            List<Long> newChildren = Arrays.asList(this.root.getPage().getPageNum(), splitPageNumber);
+            InnerNode newRoot = new InnerNode(this.metadata, this.bufferManager, Arrays.asList(splitRightKey), newChildren, this.lockContext);
+            updateRoot(newRoot);
+        }
+
     }
 
     /**

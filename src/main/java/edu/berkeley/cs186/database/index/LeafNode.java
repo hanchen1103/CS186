@@ -208,6 +208,36 @@ class LeafNode extends BPlusNode {
             float fillFactor) {
         // TODO(proj2): implement
 
+        int target = (int) Math.ceil(2 * this.metadata.getOrder() * fillFactor);
+
+        int size = this.keys.size();
+        while(size < target) {
+            if(!data.hasNext()) {
+                break;
+            }
+            Pair<DataBox, RecordId> p = data.next();
+            DataBox key = p.getFirst();
+            RecordId recordId = p.getSecond();
+            this.keys.add(key);
+            this.rids.add(recordId);
+            size ++;
+        }
+
+        if (data.hasNext()) {
+            Pair<DataBox, RecordId> p = data.next();
+            DataBox key = p.getFirst();
+            RecordId recordId = p.getSecond();
+            LeafNode splitNode = new LeafNode(this.metadata, this.bufferManager, Collections.singletonList(key),
+                    Collections.singletonList(recordId), Optional.empty(), this.treeContext);
+            Long splitPageNum = splitNode.getPage().getPageNum();
+            this.rightSibling = Optional.of(splitPageNum);
+
+            sync();
+            return Optional.of(new Pair<>(key, splitPageNum));
+
+        }
+
+        sync();
         return Optional.empty();
     }
 
