@@ -251,6 +251,19 @@ public class GHJOperator extends JoinOperator {
 
         // TODO(proj3_part1): populate leftRecords and rightRecords such that
         // SHJ breaks when trying to join them but not GHJ
+
+        int B = 6;
+        int eachPageCapacity = 8;
+
+        int SHJPartitionNumber = 5;
+        int recordNum = 32 * 5 + 1;
+
+        int GHJMaxPartitionNumber = (int) Math.pow((6-1), 5);
+
+        for (int i = 0; i < recordNum; i ++) {
+            leftRecords.add(createRecord(i + 1));
+            rightRecords.add(createRecord(i + recordNum + 1));
+        }
         return new Pair<>(leftRecords, rightRecords);
     }
 
@@ -271,6 +284,18 @@ public class GHJOperator extends JoinOperator {
         ArrayList<Record> leftRecords = new ArrayList<>();
         ArrayList<Record> rightRecords = new ArrayList<>();
         // TODO(proj3_part1): populate leftRecords and rightRecords such that GHJ breaks
+
+        int B = 6;
+        int recordNum = 32 * 5 + 1;
+        int eachPageCapacity = 8;
+
+        int recordsNumber = recordNum * 8 + 1;
+
+        int count = 0;
+        while(count ++ <= recordsNumber) {
+            leftRecords.add(createRecord(3));
+            rightRecords.add(createRecord(3));
+        }
 
         return new Pair<>(leftRecords, rightRecords);
     }
