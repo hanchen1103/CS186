@@ -128,11 +128,9 @@ public class BNLJOperator extends JoinOperator {
          * of JoinOperator).
          */
         private Record fetchNextRecord() {
-            // TODO(proj3_part1): implement
             if (leftRecord == null || rightPageIterator == null) {
                 return null;
             }
-
 
             while (true) {
                 if (this.rightPageIterator.hasNext()) {
