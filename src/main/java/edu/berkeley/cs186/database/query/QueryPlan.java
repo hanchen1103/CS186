@@ -577,7 +577,27 @@ public class QueryPlan {
         QueryOperator minOp = new SequentialScanOperator(this.transaction, table);
 
         // TODO(proj3_part2): implement
-        return minOp;
+
+        int minCost = minOp.estimateIOCost();
+        int except = -1;
+
+        List<Integer> eligibleIndexColumns = getEligibleIndexColumns(table);
+
+        for(Integer i : eligibleIndexColumns) {
+            SelectPredicate predicate = this.selectPredicates.get(i);
+            QueryOperator top = new IndexScanOperator(
+                    this.transaction, table, predicate.column,
+                    predicate.operator, predicate.value
+            );
+            int tcost = top.estimateIOCost();
+            if (tcost < minCost) {
+                minCost = tcost;
+                minOp = top;
+                except = i;
+            }
+        }
+
+        return addEligibleSelections(minOp, except);
     }
 
     // Task 6: Join Selection //////////////////////////////////////////////////
@@ -646,6 +666,43 @@ public class QueryPlan {
         //      calculate the cheapest join with the new table (the one you
         //      fetched an operator for from pass1Map) and the previously joined
         //      tables. Then, update the result map if needed.
+
+        for (var entry : prevMap.entrySet()) {
+            Set<String> prevSet = entry.getKey();
+            for (JoinPredicate j : this.joinPredicates) {
+
+                int flag;
+
+                if (prevSet.contains(j.leftTable) && !prevSet.contains(j.rightTable)) {
+                    flag = -1;
+                } else if (!prevSet.contains(j.leftTable) && prevSet.contains(j.rightTable)) {
+                   flag = 1;
+                } else {
+                    continue;
+                }
+                HashSet<String> newTableSet = new HashSet<>();
+                if (flag == 1) {
+                    newTableSet.add(j.leftTable);
+                } else {
+                    newTableSet.add(j.rightTable);
+                }
+                QueryOperator rightQO = pass1Map.get(newTableSet);
+                String lc = flag == -1 ? j.leftColumn : j.rightColumn;
+                String rc = flag == 1 ? j.leftColumn : j.rightColumn;
+                QueryOperator minCostQ = minCostJoinType(entry.getValue(), rightQO, lc, rc);
+
+                Set<String> resSet = new HashSet<>(prevSet);
+                resSet.addAll(newTableSet);
+                if (result.containsKey(resSet)) {
+                    if (result.get(resSet).estimateIOCost() < minCostQ.estimateIOCost()) {
+                        continue;
+                    }
+                }
+                result.put(resSet, minCostQ);
+            }
+        }
+
+
         return result;
     }
 
