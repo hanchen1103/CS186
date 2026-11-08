@@ -8,6 +8,7 @@ import edu.berkeley.cs186.database.table.Record;
 import edu.berkeley.cs186.database.table.Schema;
 import edu.berkeley.cs186.database.table.stats.TableStats;
 
+import java.lang.reflect.Array;
 import java.util.*;
 
 public class SortOperator extends QueryOperator {
@@ -86,8 +87,15 @@ public class SortOperator extends QueryOperator {
      * iterator
      */
     public Run sortRun(Iterator<Record> records) {
-        // TODO(proj3_part1): implement
-        return null;
+        List<Record> list = new ArrayList<>();
+
+        while(records.hasNext()) {
+            list.add(records.next());
+        }
+
+        list.sort((r1, r2) -> r1.getValue(sortColumnIndex).compareTo(r2.getValue(sortColumnIndex)));
+
+        return makeRun(list);
     }
 
     /**
@@ -107,8 +115,43 @@ public class SortOperator extends QueryOperator {
      */
     public Run mergeSortedRuns(List<Run> runs) {
         assert (runs.size() <= this.numBuffers - 1);
-        // TODO(proj3_part1): implement
-        return null;
+
+        PriorityQueue<Pair<Record, Integer>> heap = new PriorityQueue<>(
+                (r1, r2) -> (r1.getFirst().getValue(sortColumnIndex).compareTo(r2.getFirst().getValue(sortColumnIndex))));
+
+        List<Iterator<Record>> iters = new ArrayList<>();
+
+        Run res = makeRun();
+
+        for (Run r : runs) {
+            iters.add(r.iterator());
+        }
+
+        for (int i = 0; i < iters.size(); i ++) {
+            Iterator<Record> it = iters.get(i);
+            if (!it.hasNext()) {
+                continue;
+            }
+            Record r = it.next();
+            Pair<Record, Integer> p = new Pair<>(r, i);
+            heap.offer(p);
+        }
+
+        int lastOfferId;
+        while(!heap.isEmpty()) {
+
+            Pair<Record, Integer> p = heap.poll();
+            res.add(p.getFirst());
+
+            lastOfferId = p.getSecond();
+            Iterator<Record> it = iters.get(lastOfferId);
+            if (!it.hasNext()) {
+                continue;
+            }
+            heap.offer(new Pair<>(it.next(), lastOfferId));
+        }
+
+        return res;
     }
 
     /**
@@ -133,7 +176,21 @@ public class SortOperator extends QueryOperator {
      */
     public List<Run> mergePass(List<Run> runs) {
         // TODO(proj3_part1): implement
-        return Collections.emptyList();
+
+        int splitNum = this.numBuffers - 1;
+
+        int from = 0;
+
+        List<Run> res = new ArrayList<>();
+
+        while (from < runs.size()) {
+            int to = Math.min(from + splitNum, runs.size());
+            List<Run> r = runs.subList(from, to);
+            res.add(mergeSortedRuns(r));
+            from += splitNum;
+        }
+
+        return res;
     }
 
     /**
@@ -148,8 +205,23 @@ public class SortOperator extends QueryOperator {
         // Iterator over the records of the relation we want to sort
         Iterator<Record> sourceIterator = getSource().iterator();
 
-        // TODO(proj3_part1): implement
-        return makeRun(); // TODO(proj3_part1): replace this!
+        if (!sourceIterator.hasNext()) {
+            return makeRun();
+        }
+
+        List<Run> vector = new ArrayList<>();
+
+        while(sourceIterator.hasNext()) {
+            BacktrackingIterator<Record> bi = getBlockIterator(sourceIterator, getSchema(), this.numBuffers);
+            Run t = sortRun(bi);
+            vector.add(t);
+        }
+
+        while (vector.size() > 1) {
+            vector = mergePass(vector);
+        }
+
+        return vector.get(0);
     }
 
     /**
